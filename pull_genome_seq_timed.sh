@@ -45,9 +45,8 @@ echo "p3-all-genomes --limit 3 \
   --attr genome_name \
   --attr genbank_accessions \
  | p3-get-genome-contigs --col genome_id --attr sequence \
- | p3-extract genbank_accessions genome_name sequence \
- | awk 'BEGIN{FS=\"\t\"}(NR>1){print \">\"$1\" \"$2\"\n\"$3}' \
- | cut -c 1-100 \
+ | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+ | grep -A 3 '>' \
 "
 time ( p3-all-genomes --limit 3 \
 		      --eq "genus,Orthopoxvirus" \
@@ -55,9 +54,8 @@ time ( p3-all-genomes --limit 3 \
 		      --attr genome_name \
 		      --attr genbank_accessions \
 	   | p3-get-genome-contigs --col genome_id --attr sequence \
-	   | p3-extract genbank_accessions genome_name sequence \
-	   | awk 'BEGIN{FS="\t"}(NR>1){print ">"$1" "$2"\n"$3}' \
-	   | cut -c 1-100 \
+	   | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+	   | grep -A 3 '>' \
 ) 
 
 cat <<EOF
@@ -70,62 +68,75 @@ cat <<EOF
 #
 # ----------------------------------------------------------------------
 
-# query IDs -> $ID_500_OUt
 EOF
+FETCH_COUNT=100
+FA_OUT=$FA_100_OUT
+ID_OUT=$ID_100_OUT
+echo "# query IDs -> $ID_OUT"
+
 echo " \
-  p3-all-genomes --limit 100 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --eq 'genus,Orthopoxvirus' \
   --gt 'genome_length,100000' \
   --eq 'contigs,1' \
   --attr genome_name --attr genbank_accessions \
-  > $ID_100_OUT
+  > $ID_OUT
 "
 time ( \
-  p3-all-genomes --limit 100 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --eq 'genus,Orthopoxvirus' \
   --gt 'genome_length,100000' \
   --eq 'contigs,1' \
   --attr genome_name --attr genbank_accessions \
-  > $ID_100_OUT \
+  > $ID_OUT \
 )
-wc -l $ID_100_OUT
+wc -l $ID_OUT
 
 cat <<EOF
 
-# query sequneces -> $FA_100_OUT
+# query sequneces -> $FA_OUT
 EOF
 echo " \
-  p3-all-genomes --limit 100 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --gt 'genome_length,100000' \
   --eq 'contigs,1' \
   --eq 'genus,Orthopoxvirus' \
   --attr genome_name --attr genbank_accessions \
       | p3-get-genome-contigs --col genome_id --attr sequence \
-      | p3-extract genbank_accessions genome_name sequence \
-      | awk 'BEGIN{FS=\"\t\"}(NR>1){print \">\"\$1\" \"\$2\"\n\"\$3}' \
-      > $FA_100_OUT ) \
+      | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+      > $FA_OUT ) \
 "
 
-time ( p3-all-genomes --limit 100 \
+time ( p3-all-genomes --limit $FETCH_COUNT \
 		      --eq 'genus,Orthopoxvirus' \
 		      --gt genome_length,100000 \
 		      --eq 'contigs,1' \
 		      --attr genome_name \
 		      --attr genbank_accessions \
 	   | p3-get-genome-contigs --col genome_id --attr sequence \
-	   | p3-extract genbank_accessions genome_name sequence \
-	   | awk 'BEGIN{FS="\t"}(NR>1){print ">"$1" "$2"\n"$3}' \
-		 > $FA_100_OUT \
+	   | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+		 > $FA_OUT \
      )
-echo "grep -c '>' $FA_100_OUT"
-grep -c '>' $FA_100_OUT
+echo "grep -c '>' $FA_OUT"
+grep -c '>' $FA_OUT
+
+# check counts
+SEQ_COUNT=$(grep -c '>' $FA_OUT)
+if [[ "$SEQ_COUNT" -ne "$FETCH_COUNT" ]]; then
+    echo "ERROR: incorrect number of sequences returned $SEQ_COUNT \!= $FETCH_COUNT"
+    exit 1
+else
+    echo "SUCCESS: correct number of sequences returned $SEQ_COUNT == $FETCH_COUNT"
+fi
 
 cat <<EOF
 
 # check IDs 
 EOF
-echo "diff --color  <(cut -f 3 $ID_100_OUT | sort) <(grep '>'  $FA_100_OUT | cut -c 2- | awk '{print $1}'|sort)"
-diff --color  <(cut -f 3 $ID_100_OUT | sort) <(grep '>'  $FA_100_OUT | cut -c 2- | awk '{print $1}'|sort)
+echo "diff --color  <(p3-extract genome_id -i $ID_OUT | tail -n +2 | sort) <(grep '>'  $FA_OUT | cut -c 2- | awk '{print \$1}'|sort)"
+diff --color  <(p3-extract genome_id -i $ID_OUT | tail -n +2 | sort) <(grep '>'  $FA_OUT | cut -c 2- | awk '{print $1}'|sort)
+
+
 
 cat <<EOF
 
@@ -138,55 +149,65 @@ cat <<EOF
 #
 # ----------------------------------------------------------------------
 
-# query IDs -> $ID_500_OUt
 EOF
+FETCH_COUNT=500
+FA_OUT=$FA_500_OUT
+ID_OUT=$ID_500_OUT
+echo "# query IDs -> $ID_OUT"
+
 echo " \
-  p3-all-genomes --limit 500 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --eq 'genus,Orthopoxvirus' \
   --gt 'genome_length,100000' \
   --eq 'contigs,1' \
   --attr genome_name --attr genbank_accessions \
-  > $ID_500_OUT
+  > $ID_OUT
 "
 time ( \
-  p3-all-genomes --limit 500 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --eq 'genus,Orthopoxvirus' \
   --gt 'genome_length,100000' \
   --eq 'contigs,1' \
   --attr genome_name --attr genbank_accessions \
-  > $ID_500_OUT \
+  > $ID_OUT \
 )
-wc -l $ID_500_OUT
+wc -l $ID_OUT
 
 
 cat <<EOF
 
-# query sequneces -> $FA_500_OUT
+# query sequneces -> $FA_OUT
 EOF
 echo " \
-  p3-all-genomes --limit 500 \
+  p3-all-genomes --limit $FETCH_COUNT \
   --eq 'genus,Orthopoxvirus' \
   --gt genome_length,100000 --attr genome_name --attr genbank_accessions \
       | p3-get-genome-contigs --col genome_id --attr sequence \
-      | p3-extract genbank_accessions genome_name sequence \
-      | awk 'BEGIN{FS=\"\t\"}(NR>1){print \">\"\$1\" \"\$2\"\n\"\$3}' \
-      > $FA_500_OUT ) \
+      | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+      > $FA_OUT ) \
 "
 
-time ( p3-all-genomes --limit 500 \
+time ( p3-all-genomes --limit $FETCH_COUNT \
 		      --eq 'genus,Orthopoxvirus' \
 		      --gt genome_length,100000 --attr genome_name --attr genbank_accessions \
 	   | p3-get-genome-contigs --col genome_id --attr sequence \
-	   | p3-extract genbank_accessions genome_name sequence \
-	   | awk 'BEGIN{FS="\t"}(NR>1){print ">"$1" "$2"\n"$3}' \
-		 > $FA_500_OUT \
+	   | p3-tbl-to-fasta genome_id sequence -k genbank_accessions -k genome_name \
+		 > $FA_OUT \
      )
-echo "grep -c '>' $FA_500_OUT"
-grep -c '>' $FA_500_OUT
+echo "grep -c '>' $FA_OUT"
+grep -c '>' $FA_OUT
+SEQ_COUNT=$(grep -c '>' $FA_OUT)
+if [[ "$SEQ_COUNT" -ne "$FETCH_COUNT" ]]; then
+    echo "ERROR: incorrect number of sequences returned $SEQ_COUNT \!= $FETCH_COUNT"
+    exit 1
+else
+    echo "SUCCESS: correct number of sequences returned $SEQ_COUNT == $FETCH_COUNT"
+fi
 
 cat <<EOF
 
 # check IDs 
 EOF
-echo "diff --color  <(cut -f 3 $ID_500_OUT | sort) <(grep '>'  $FA_500_OUT | cut -c 2- | awk '{print $1}'|sort)"
-diff --color  <(cut -f 3 $ID_500_OUT | sort) <(grep '>'  $FA_500_OUT | cut -c 2- | awk '{print $1}'|sort)
+echo "diff --color  <(p3-extract genome_id -i $ID_OUT | tail -n +2 | sort) <(grep '>'  $FA_OUT | cut -c 2- | awk '{print \$1}'|sort)"
+diff --color  <(p3-extract genome_id -i $ID_OUT | tail -n +2 | sort) <(grep '>'  $FA_OUT | cut -c 2- | awk '{print $1}'|sort)
+
