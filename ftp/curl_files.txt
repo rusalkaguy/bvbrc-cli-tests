@@ -1,0 +1,7 @@
+viruses/genome_lineage
+viruses/genome_metadata
+viruses/genome_summary
+viruses/Poxviridae.fna
+viruses/Poxviridae.PATRIC.faa
+viruses/Poxviridae.PATRIC.features.tab
+viruses/Poxviridae.PATRIC.ffn
